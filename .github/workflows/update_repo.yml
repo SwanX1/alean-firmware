@@ -12,40 +12,47 @@ jobs:
       - name: Update repository
         run: |
           tempdir=`mktemp -d`
+          origdir=`mktemp -d`
+
+          git clone --depth 1 --recurse-submodules -- "https://$GITHUB_ACTOR:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY.git" "$tempdir"
+          cp -fr "$tempdir"/* "$origdir"
 
           cd "$tempdir"
 
-          curl -O 'https://raw.githubusercontent.com/raspberrypi/firmware/master/boot/bootcode.bin' \
-              -O 'https://raw.githubusercontent.com/raspberrypi/firmware/master/boot/fixup.dat' \
-              -O 'https://raw.githubusercontent.com/raspberrypi/firmware/master/boot/start.elf' \
-              -O 'https://raw.githubusercontent.com/raspberrypi/firmware/master/boot/LICENCE.broadcom'
+          curl \
+            -O 'https://raw.githubusercontent.com/raspberrypi/firmware/master/boot/bootcode.bin' \
+            -O 'https://raw.githubusercontent.com/raspberrypi/firmware/master/boot/fixup.dat' \
+            -O 'https://raw.githubusercontent.com/raspberrypi/firmware/master/boot/start.elf' \
+            -O 'https://raw.githubusercontent.com/raspberrypi/firmware/master/boot/LICENCE.broadcom'
 
           tempdirhash=`find "$tempdir" -type f | xargs sha512sum | cut -d ' ' -f 1`
-          commit_sha=`curl -s "https://api.github.com/repos/raspberrypi/firmware/commits" | jq -r ".[0].sha"`
+          origdirhash=`find "$origdir" -type f | xargs sha512sum | cut -d ' ' -f 1`
 
-          git init
+          
+          if [[ "$tempdirhash" != "$origdirhash" ]]; then
+            commit_sha=`curl -s "https://api.github.com/repos/raspberrypi/firmware/commits" | jq -r ".[0].sha"`
 
-          commit=`
-            curl \
-              -s \
-              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              "https://api.github.com/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA"
-          `
-          echo "$commit" | jq ".commit.author.name" | xargs git config user.name
-          echo "$commit" | jq ".commit.author.email" | xargs git config user.email
+            commit=`
+              curl \
+                -s \
+                -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                "https://api.github.com/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA"
+            `
+            echo "$commit" | jq ".commit.author.name" | xargs git config user.name
+            echo "$commit" | jq ".commit.author.email" | xargs git config user.email
 
-          git add . -v
-          git commit --verbose -m "
-          $commit_sha
-                    
-          This is an automated commit. It is made by a GitHub workflow.
-          It contains the firmware files of the raspberrypi/firmware repository.
-          Action: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
-          "
-
-          git branch -m raw
-          git remote add origin "https://$GITHUB_ACTOR:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY.git"
-          git push origin raw --force --verbose
+            git add . -v
+            git commit --verbose -m "
+            $commit_sha
+                      
+            This is an automated commit. It is made by a GitHub workflow.
+            It contains the firmware files of the raspberrypi/firmware repository.
+            Action: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+            "
+            git push --force --verbose
+          else
+            echo "No changes, skipping commit"
+          fi
 
           cd ~
 
