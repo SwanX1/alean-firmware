@@ -1,0 +1,5 @@
+This repository only contains a selection of files from raspberrypi/firmware in its 'raw'
+branch for ease of inclusion in the SwanX1/alean project as a submodule. All rights go
+to their respective owners. The license file for the firmware has been included in the
+'raw' branch. This repository is not the place to report any issues with the files. This
+repository is automated using GitHub Actions.

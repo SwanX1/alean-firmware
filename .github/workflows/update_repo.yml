@@ -1,0 +1,53 @@
+name: Update repository
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 * * * *'
+
+jobs:
+  update:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Update repository
+        run: |
+          tempdir=`mktemp -d`
+
+          cd "$tempdir"
+
+          curl -O 'https://raw.githubusercontent.com/raspberrypi/firmware/master/boot/bootcode.bin' \
+              -O 'https://raw.githubusercontent.com/raspberrypi/firmware/master/boot/fixup.dat' \
+              -O 'https://raw.githubusercontent.com/raspberrypi/firmware/master/boot/start.elf' \
+              -O 'https://raw.githubusercontent.com/raspberrypi/firmware/master/boot/LICENCE.broadcom'
+
+          tempdirhash=`find "$tempdir" -type f | xargs sha512sum | cut -d ' ' -f 1`
+          commit_sha=`curl -s "https://api.github.com/repos/raspberrypi/firmware/commits" | jq -r ".[0].sha"`
+
+          git init
+
+          commit=`
+            curl \
+              -s \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA"
+          `
+          echo "$commit" | jq ".commit.author.name" | xargs git config user.name
+          echo "$commit" | jq ".commit.author.email" | xargs git config user.email
+
+          git add . -v
+          git commit --verbose -m "
+          $commit_sha
+                    
+          This is an automated commit. It is made by a GitHub workflow.
+          It contains the firmware files of the raspberrypi/firmware repository.
+          Action: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+          "
+
+          git branch -m raw
+          git remote add origin "https://$GITHUB_ACTOR:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY.git"
+          git push origin raw --force --verbose
+
+          cd ~
+
+          rm -rfv "$tempdir"
+
