@@ -52,6 +52,7 @@ jobs:
             git push --force --verbose
           else
             echo "No changes, skipping commit"
+            exit 0
           fi
 
           cd ~
