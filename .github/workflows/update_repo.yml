@@ -25,8 +25,8 @@ jobs:
             -O 'https://raw.githubusercontent.com/raspberrypi/firmware/master/boot/start.elf' \
             -O 'https://raw.githubusercontent.com/raspberrypi/firmware/master/boot/LICENCE.broadcom'
 
-          tempdirhash=`find "$tempdir" -type f | xargs sha512sum | cut -d ' ' -f 1`
-          origdirhash=`find "$origdir" -type f | xargs sha512sum | cut -d ' ' -f 1`
+          tempdirhash=`sha512sum "$tempdir"/{bootcode.bin,fixup.dat,start.elf,LICENCE.broadcom} | cut -d ' ' -f 1`
+          origdirhash=`sha512sum "$origdir"/{bootcode.bin,fixup.dat,start.elf,LICENCE.broadcom} | cut -d ' ' -f 1`
 
           
           if [[ "$tempdirhash" != "$origdirhash" ]]; then
